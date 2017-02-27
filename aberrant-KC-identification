@@ -1,0 +1,128 @@
+#Aberrant KC Identification
+#A part of IO data quality evaluation framework
+#Code by Haoyang Zhao, Ver 1.00 Build20170227
+
+#the following code is designed specifically for data in China, as kcr.txt provided in this repository
+
+setwd("R:\\RData") #set default folder, change into your own default folder before run this code on your computer :)
+
+kcr=as.matrix(read.table(file="kcr.txt", header=FALSE))
+kcr02=kcr[,1:87] #key coefficient matrix, province*kc=30*87, 2002
+kcr07=kcr[,88:174] #kc, 2007
+kcr12=kcr[,175:261] #kc, 2012
+
+#Trend outliers
+avg02=matrix(nrow=30, ncol=87)
+avg07=matrix(nrow=30, ncol=87)
+avg12=matrix(nrow=30, ncol=87)
+for (i in 1:87) {
+	sum02=sum(kcr02[,i])
+	sum07=sum(kcr07[,i])
+	sum12=sum(kcr12[,i])
+	for (j in 1:30) {
+		avg02[j,i]=(sum02-kcr02[j,i])/29
+		avg07[j,i]=(sum07-kcr07[j,i])/29
+		avg12[j,i]=(sum02-kcr12[j,i])/29
+	}
+}
+
+sed0207=matrix(nrow=30, ncol=87)
+sed0712=matrix(nrow=30, ncol=87)
+for (i in 1:30) {
+	for (j in 1:87) {
+		sed0207[i,j]=0
+		sed0712[i,j]=0
+	}
+}
+for (i in 1:30) {
+	for (j in 1:87) {
+		for (k in 1:30) {
+			sed0207[i,j]=sed0207[i,j]+sqrt((kcr02[k,j]-avg02[i,j])^2+(kcr07[k,j]-avg07[i,j])^2)
+			sed0712[i,j]=sed0712[i,j]+sqrt((kcr07[k,j]-avg07[i,j])^2+(kcr12[k,j]-avg12[i,j])^2)
+		}
+		sed0207[i,j]=sed0207[i,j]-sqrt((kcr02[i,j]-avg02[i,j])^2+(kcr07[i,j]-avg07[i,j])^2)
+		sed0712[i,j]=sed0712[i,j]-sqrt((kcr07[i,j]-avg07[i,j])^2+(kcr12[i,j]-avg12[i,j])^2)
+	}
+}
+
+msd0207=matrix(nrow=2, ncol=87)
+msd0712=matrix(nrow=2, ncol=87)
+for (i in 1:87) {
+	msd0207[1,i]=mean(sed0207[,i])
+	msd0207[2,i]=2*sd(sed0207[,i])
+	msd0712[1,i]=mean(sed0712[,i])
+	msd0712[2,i]=2*sd(sed0712[,i])
+}
+tsd0207=matrix(nrow=2, ncol=87)
+tsd0712=matrix(nrow=2, ncol=87)
+for (i in 1:87) {
+	tsd0207[1,i]=msd0207[1,i]+msd0207[2,i]
+	tsd0207[2,i]=msd0207[1,i]-msd0207[2,i]
+	tsd0712[1,i]=msd0712[1,i]+msd0712[2,i]
+	tsd0712[2,i]=msd0712[1,i]-msd0712[2,i]
+}
+
+akc0207=matrix(nrow=30, ncol=87)
+akc0712=matrix(nrow=30, ncol=87)
+for (i in 1:30) {
+	for (j in 1:87) {
+		if(sed0207[i,j]>=tsd0207[1,j]){
+			akc0207[i,j]=1
+		}else
+		if(sed0207[i,j]<=tsd0207[2,j]){
+			akc0207[i,j]=1
+		}else{
+			akc0207[i,j]=0
+		}
+	}
+}
+for (i in 1:30) {
+	for (j in 1:87) {
+		if(sed0712[i,j]>=tsd0712[1,j]){
+			akc0712[i,j]=1
+		}else
+		if(sed0712[i,j]<=tsd0712[2,j]){
+			akc0712[i,j]=1
+		}else{
+			akc0712[i,j]=0
+		}
+	}
+}
+
+write.table(akc0207,file="akc0207.txt",sep=",",quote=FALSE,append=FALSE,na="")
+write.table(akc0712,file="akc0712.txt",sep=",",quote=FALSE,append=FALSE,na="")
+
+#Mutation
+mut0207=matrix(nrow=30, ncol=87)
+mut0712=matrix(nrow=30, ncol=87)
+for (i in 1:30) {
+	for (j in 1:87) {
+		if(kcr02[i,j]==0 & kcr07[i,j]>0){
+			mut0207[i,j]=1
+		}else
+		if(kcr07[i,j]==0 & kcr02[i,j]>0){
+			mut0207[i,j]=1
+		}else{
+			mut0207[i,j]=0
+		}
+	}
+}
+for (i in 1:30) {
+	for (j in 1:87) {
+		if(kcr07[i,j]==0 & kcr12[i,j]>0){
+			mut0712[i,j]=1
+		}else
+		if(kcr12[i,j]==0 & kcr07[i,j]>0){
+			mut0712[i,j]=1
+		}else{
+			mut0712[i,j]=0
+		}
+	}
+}
+write.table(mut0207,file="mut0207.txt",sep=",",quote=FALSE,append=FALSE,na="")
+write.table(mut0712,file="mut0712.txt",sep=",",quote=FALSE,append=FALSE,na="")
+
+kcm0207=mut0207+akc0207
+kcm0712=mut0712+akc0712
+write.table(kcm0207,file="kcm0207.txt",sep=",",quote=FALSE,append=FALSE,na="")
+write.table(kcm0712,file="kcm0712.txt",sep=",",quote=FALSE,append=FALSE,na="")
